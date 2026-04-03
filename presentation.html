@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>物理の力でAIを動かす</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
+    background: #12121e;
+    color: #eeeeff;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  .slides { width: 100%; height: 100vh; position: relative; }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 60px;
+    opacity: 0;
+    transform: translateX(60px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    pointer-events: none;
+  }
+
+  .slide.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: all;
+  }
+
+  .slide.exit {
+    opacity: 0;
+    transform: translateX(-60px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+
+  /* --- Slide 1: Title --- */
+  .slide-title {
+    background: radial-gradient(ellipse at 30% 50%, #261240 0%, #12121e 70%);
+    text-align: center;
+  }
+
+  .slide-title .tag {
+    font-size: 13px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #a07de0;
+    margin-bottom: 24px;
+  }
+
+  .slide-title h1 {
+    font-size: 72px;
+    font-weight: 800;
+    line-height: 1.1;
+    background: linear-gradient(135deg, #c084fc, #818cf8, #38bdf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 24px;
+  }
+
+  .slide-title .subtitle {
+    font-size: 22px;
+    color: #c0b8e8;
+    margin-bottom: 48px;
+  }
+
+  .button-icons {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+  }
+
+  .btn-icon {
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(145deg, #3a2560, #221440);
+    border: 2px solid #a07de0;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 700;
+    color: #d4a0ff;
+    box-shadow: 0 0 20px rgba(160, 125, 224, 0.4);
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  .btn-icon:nth-child(2) { animation-delay: 0.3s; }
+  .btn-icon:nth-child(3) { animation-delay: 0.6s; }
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(160, 125, 224, 0.4); }
+    50% { box-shadow: 0 0 40px rgba(212, 160, 255, 0.7); }
+  }
+
+  /* --- Common --- */
+  .slide-inner {
+    width: 100%;
+    max-width: 1000px;
+  }
+
+  h2 {
+    font-size: 14px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #a07de0;
+    margin-bottom: 16px;
+  }
+
+  h3 {
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 40px;
+    color: #f8f8ff;
+  }
+
+  /* --- Slide 2: Problem --- */
+  .problem-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .problem-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 24px 28px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+  }
+
+  .problem-item .icon {
+    font-size: 28px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .problem-item .text {
+    font-size: 18px;
+    line-height: 1.6;
+    color: #c0c0d8;
+  }
+
+  .problem-item .text strong {
+    color: #f0f0ff;
+    display: block;
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+
+  /* --- Slide 3: Solution --- */
+  .solution-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 40px;
+  }
+
+  .flow-box {
+    text-align: center;
+    padding: 28px 32px;
+    background: linear-gradient(145deg, #1a1030, #0f0a20);
+    border: 1px solid rgba(124, 92, 191, 0.4);
+    border-radius: 16px;
+    min-width: 160px;
+  }
+
+  .flow-box .flow-icon { font-size: 36px; margin-bottom: 10px; }
+  .flow-box .flow-label { font-size: 13px; color: #a0a0c0; letter-spacing: 1px; }
+  .flow-box .flow-main { font-size: 18px; font-weight: 700; color: #c084fc; margin-top: 4px; }
+
+  .flow-arrow {
+    font-size: 28px;
+    color: #4a3a6e;
+    padding: 0 8px;
+  }
+
+  .solution-highlight {
+    text-align: center;
+    padding: 24px;
+    background: linear-gradient(135deg, rgba(192, 132, 252, 0.15), rgba(56, 189, 248, 0.1));
+    border: 1px solid rgba(192, 132, 252, 0.3);
+    border-radius: 12px;
+    font-size: 20px;
+    color: #e8e8ff;
+    line-height: 1.6;
+  }
+
+  /* --- Slide 4: Hardware --- */
+  .hw-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: center;
+  }
+
+  .hw-images {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .hw-img-main {
+    width: 100%;
+    border-radius: 16px;
+    border: 1px solid rgba(124, 92, 191, 0.4);
+    object-fit: cover;
+    box-shadow: 0 0 40px rgba(124, 92, 191, 0.2);
+  }
+
+  .hw-img-sub {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+    object-fit: cover;
+    opacity: 0.85;
+  }
+
+  .hw-specs {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .hw-card {
+    padding: 18px 22px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .hw-card .hw-icon { font-size: 28px; flex-shrink: 0; }
+  .hw-card h4 { font-size: 15px; font-weight: 700; color: #c084fc; margin-bottom: 2px; }
+  .hw-card p { font-size: 13px; color: #a0a0c0; line-height: 1.5; margin: 0; }
+
+  .price-tag {
+    display: inline-block;
+    padding: 2px 10px;
+    background: rgba(192, 132, 252, 0.2);
+    border: 1px solid rgba(192, 132, 252, 0.4);
+    border-radius: 20px;
+    font-size: 13px;
+    color: #c084fc;
+    font-weight: 600;
+  }
+
+  /* --- Demo Slide --- */
+  .demo-slide {
+    background: radial-gradient(ellipse at 50% 40%, #0f0a20 0%, #0a0a0f 70%);
+  }
+
+  .demo-slide .slide-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .demo-slide h3 { text-align: center; margin-bottom: 24px; }
+
+  .video-wrapper {
+    width: 100%;
+    max-width: 860px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(124, 92, 191, 0.4);
+    box-shadow: 0 0 60px rgba(124, 92, 191, 0.25);
+  }
+
+  .video-wrapper video {
+    width: 100%;
+    display: block;
+    max-height: 480px;
+    background: #000;
+  }
+
+  .video-caption {
+    margin-top: 16px;
+    font-size: 14px;
+    color: #6060a0;
+    text-align: center;
+    letter-spacing: 1px;
+  }
+
+  /* --- Slide 5: Architecture --- */
+  .arch-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: 100%;
+  }
+
+  .arch-step {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 20px 28px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    margin-bottom: 4px;
+  }
+
+  .arch-step .step-num {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #7c5cbf, #5b4da0);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .arch-step .step-content { flex: 1; }
+  .arch-step .step-title { font-size: 16px; font-weight: 700; color: #e8e8ff; }
+  .arch-step .step-desc { font-size: 14px; color: #8080a0; margin-top: 2px; }
+
+  .arch-step .step-badge {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(124, 92, 191, 0.2);
+    border: 1px solid rgba(124, 92, 191, 0.4);
+    color: #a080e0;
+    white-space: nowrap;
+  }
+
+  .arch-connector {
+    width: 2px;
+    height: 16px;
+    background: linear-gradient(to bottom, #7c5cbf, #4a3a6e);
+    margin-left: 45px;
+  }
+
+  /* --- Slide 6: Tech --- */
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  .tech-card {
+    padding: 24px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    text-align: center;
+    transition: border-color 0.3s;
+  }
+
+  .tech-card:hover {
+    border-color: rgba(192, 132, 252, 0.4);
+  }
+
+  .tech-card .tech-icon { font-size: 32px; margin-bottom: 12px; }
+  .tech-card h4 { font-size: 16px; font-weight: 700; color: #c084fc; margin-bottom: 8px; }
+  .tech-card p { font-size: 13px; color: #8080a0; line-height: 1.6; }
+
+  /* --- Slide 7: Theme --- */
+  .theme-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: center;
+  }
+
+  .theme-left h3 { font-size: 38px; margin-bottom: 20px; }
+
+  .theme-point {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .theme-point .tp-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #7c5cbf, #5b4da0);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .theme-point .tp-text { font-size: 16px; color: #c0c0d8; line-height: 1.6; }
+  .theme-point .tp-text strong { color: #f0f0ff; display: block; }
+
+  .theme-visual {
+    background: linear-gradient(145deg, #1a1030, #0f0a20);
+    border: 1px solid rgba(124, 92, 191, 0.4);
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+  }
+
+  .theme-visual .vs-text {
+    font-size: 14px;
+    letter-spacing: 3px;
+    color: #6060a0;
+    margin-bottom: 24px;
+    text-transform: uppercase;
+  }
+
+  .vs-pair {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .vs-item { text-align: center; }
+  .vs-item .vs-icon { font-size: 40px; margin-bottom: 8px; }
+  .vs-item .vs-label { font-size: 13px; color: #8080a0; }
+
+  .vs-arrow { font-size: 24px; color: #c084fc; }
+
+  /* --- Slide 8: Summary --- */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+
+  .summary-card {
+    padding: 28px 24px;
+    text-align: center;
+    background: linear-gradient(145deg, #1a1030, #0f0a20);
+    border: 1px solid rgba(124, 92, 191, 0.3);
+    border-radius: 16px;
+  }
+
+  .summary-card .score-icon { font-size: 36px; margin-bottom: 12px; }
+  .summary-card h4 { font-size: 16px; font-weight: 700; color: #c084fc; margin-bottom: 10px; }
+  .summary-card p { font-size: 14px; color: #8080a0; line-height: 1.6; }
+
+  .closing {
+    text-align: center;
+    padding: 24px;
+    background: linear-gradient(135deg, rgba(192, 132, 252, 0.1), rgba(56, 189, 248, 0.08));
+    border: 1px solid rgba(192, 132, 252, 0.2);
+    border-radius: 12px;
+    font-size: 20px;
+    font-weight: 600;
+    color: #e8e8ff;
+  }
+
+  /* --- Progress & Nav --- */
+  .progress {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: rgba(255,255,255,0.05);
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #7c5cbf, #38bdf8);
+    transition: width 0.5s ease;
+  }
+
+  .slide-counter {
+    position: fixed;
+    bottom: 20px;
+    right: 28px;
+    font-size: 13px;
+    color: #4a4a6a;
+    letter-spacing: 1px;
+  }
+
+  .nav-hint {
+    position: fixed;
+    bottom: 20px;
+    left: 28px;
+    font-size: 13px;
+    color: #4a4a6a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .key {
+    padding: 2px 8px;
+    border: 1px solid #2a2a4a;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #6060a0;
+  }
+</style>
+</head>
+<body>
+
+<div class="slides" id="slides">
+
+  <!-- Slide 1: Title -->
+  <div class="slide slide-title active" data-index="0">
+    <div class="tag">Hackathon — 物理テーマ</div>
+    <h1>物理の力で<br>AIを動かす</h1>
+    <p class="subtitle">Claude Code 物理ボタン入力システム</p>
+    <div class="button-icons">
+      <div class="btn-icon">1</div>
+      <div class="btn-icon">2</div>
+      <div class="btn-icon">3</div>
+    </div>
+  </div>
+
+  <!-- Slide 2: Problem -->
+  <div class="slide" data-index="1">
+    <div class="slide-inner">
+      <h2>Problem</h2>
+      <h3>AIとの対話、<br>意外と手間がかかる</h3>
+      <div class="problem-list">
+        <div class="problem-item">
+          <span class="icon">🤖</span>
+          <div class="text">
+            <strong>Claude Codeは頻繁に選択を求める</strong>
+            「続けますか？ 1) はい　2) いいえ　3) 別の方法で」— 毎回キーボードを入力
+          </div>
+        </div>
+        <div class="problem-item">
+          <span class="icon">🖱️</span>
+          <div class="text">
+            <strong>フォーカス切り替えが発生する</strong>
+            別のウィンドウで作業中に Claude Code の画面に切り替え、数字を入力、また戻る
+          </div>
+        </div>
+        <div class="problem-item">
+          <span class="icon">⚡</span>
+          <div class="text">
+            <strong>思考の流れが途切れる</strong>
+            わずかな操作でも、集中が途切れてしまう
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 3: Solution -->
+  <div class="slide" data-index="2">
+    <div class="slide-inner">
+      <h2>Solution</h2>
+      <h3>ボタンを押すだけ</h3>
+      <div class="solution-flow">
+        <div class="flow-box">
+          <div class="flow-icon">👆</div>
+          <div class="flow-label">物理ボタン</div>
+          <div class="flow-main">押す</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box">
+          <div class="flow-icon">⚙️</div>
+          <div class="flow-label">デーモン</div>
+          <div class="flow-main">変換</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box">
+          <div class="flow-icon">🤖</div>
+          <div class="flow-label">Claude Code</div>
+          <div class="flow-main">入力完了</div>
+        </div>
+      </div>
+      <div class="solution-highlight">
+        フォーカス不要・画面切り替え不要<br>
+        <strong>どのウィンドウを見ていても、ボタン1つで回答できる</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 4: Hardware -->
+  <div class="slide" data-index="3">
+    <div class="slide-inner">
+      <h2>Hardware</h2>
+      <h3>PCsensor MK321</h3>
+      <div class="hw-layout">
+        <div class="hw-images">
+          <img class="hw-img-main" src="keyboard_main.jpg" alt="PCsensor MK321 メイン">
+          <img class="hw-img-sub" src="keyboard_2.jpg" alt="PCsensor MK321 サブ">
+        </div>
+        <div class="hw-specs">
+          <div class="hw-card">
+            <div class="hw-icon">🔵</div>
+            <div>
+              <h4>Bluetooth 接続</h4>
+              <p>ワイヤレスで邪魔なケーブルなし。Mac とペアリングして即使用</p>
+            </div>
+          </div>
+          <div class="hw-card">
+            <div class="hw-icon">⌨️</div>
+            <div>
+              <h4>メカニカルスイッチ（青軸）</h4>
+              <p>確実なクリック感。触覚フィードバックで操作ミス防止</p>
+            </div>
+          </div>
+          <div class="hw-card">
+            <div class="hw-icon">🔋</div>
+            <div>
+              <h4>USB-C 充電式</h4>
+              <p>バッテリー内蔵。いつでもどこでも使用可能</p>
+            </div>
+          </div>
+          <div class="hw-card">
+            <div class="hw-icon">💰</div>
+            <div>
+              <h4>コストパフォーマンス</h4>
+              <p>Amazon で入手可能 <span class="price-tag">約 3,000〜4,000円</span></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 5: Architecture -->
+  <div class="slide" data-index="4">
+    <div class="slide-inner">
+      <h2>Architecture</h2>
+      <h3>仕組み</h3>
+      <div class="arch-flow">
+        <div class="arch-step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-title">物理ボタンを押す</div>
+            <div class="step-desc">PCsensor MK321 の1・2・3番ボタン</div>
+          </div>
+          <div class="step-badge">Hardware</div>
+        </div>
+        <div class="arch-connector"></div>
+        <div class="arch-step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-title">F13 / F14 / F15 として送信</div>
+            <div class="step-desc">ElfKey でキーマッピング設定済み</div>
+          </div>
+          <div class="step-badge">Firmware</div>
+        </div>
+        <div class="arch-connector"></div>
+        <div class="arch-step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-title">Quartz でキーイベントをフック</div>
+            <div class="step-desc">button_daemon.py がOS レベルで監視・イベントを抑制</div>
+          </div>
+          <div class="step-badge">macOS API</div>
+        </div>
+        <div class="arch-connector"></div>
+        <div class="arch-step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-title">Claude Code の PTY に直接書き込む</div>
+            <div class="step-desc">ioctl TIOCSTI で「1」「2」「3」を入力バッファへインジェクト</div>
+          </div>
+          <div class="step-badge">PTY Injection</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 6: Tech highlights -->
+  <div class="slide" data-index="5">
+    <div class="slide-inner">
+      <h2>Tech Highlights</h2>
+      <h3>技術的なこだわり</h3>
+      <div class="tech-grid">
+        <div class="tech-card">
+          <div class="tech-icon">🔒</div>
+          <h4>OS レベルの<br>キーフック</h4>
+          <p>Quartz CGEventTap で OS 全体のキーイベントをキャプチャ。どのアプリがフォーカスを持っていても動作</p>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">📡</div>
+          <h4>PTY への<br>直接インジェクト</h4>
+          <p>ioctl TIOCSTI を使い Claude Code の入力バッファに文字を直接書き込み。画面切り替え不要を実現</p>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">🎯</div>
+          <h4>自PTY誤送信<br>防止機能</h4>
+          <p>os.ttyname(0) でデーモン自身の PTY を検出・除外。正確に Claude Code のプロセスのみを対象にする</p>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">🖥️</div>
+          <h4>ウィンドウ<br>フォーカス機能</h4>
+          <p>F15 を押すと AppleScript で Claude Code のターミナルを自動フォーカス</p>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">🧵</div>
+          <h4>ノンブロッキング<br>処理</h4>
+          <p>キー送信・フォーカス操作を別スレッドで実行。イベントループをブロックしない</p>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">🚀</div>
+          <h4>LaunchAgent<br>常駐起動</h4>
+          <p>macOS LaunchAgent に登録することで Mac 起動時に自動スタート</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 7: Demo -->
+  <div class="slide demo-slide" data-index="6">
+    <div class="slide-inner">
+      <h2>Demo</h2>
+      <h3>実際の動作</h3>
+      <div class="video-wrapper">
+        <video controls preload="metadata" onclick="event.stopPropagation()">
+          <source src="IMG_7503.MOV" type="video/mp4">
+        </video>
+      </div>
+      <p class="video-caption">物理ボタンを押すと、フォーカスに関係なく Claude Code に入力が届く</p>
+    </div>
+  </div>
+
+  <!-- Slide 8: Theme -->
+  <div class="slide" data-index="7">
+    <div class="slide-inner">
+      <h2>Theme</h2>
+      <div class="theme-content">
+        <div class="theme-left">
+          <h3>「物理」テーマへの<br>向き合い方</h3>
+          <div class="theme-point">
+            <div class="tp-icon">🧠</div>
+            <div class="tp-text">
+              <strong>デジタル × 物理のブリッジ</strong>
+              無形の AI とのインタラクションを、実体のある物理ボタンで制御する
+            </div>
+          </div>
+          <div class="theme-point">
+            <div class="tp-icon">✋</div>
+            <div class="tp-text">
+              <strong>触覚フィードバック</strong>
+              メカニカルスイッチのクリック感が「操作した」という確信を生む
+            </div>
+          </div>
+          <div class="theme-point">
+            <div class="tp-icon">🎮</div>
+            <div class="tp-text">
+              <strong>身体的 UX</strong>
+              視線を画面に向けずに操作できる。AIの「次の行動」を身体で決定する
+            </div>
+          </div>
+        </div>
+        <div class="theme-visual">
+          <div class="vs-text">Interface Evolution</div>
+          <div class="vs-pair">
+            <div class="vs-item">
+              <div class="vs-icon">💻</div>
+              <div class="vs-label">キーボード入力</div>
+            </div>
+            <div class="vs-arrow">→</div>
+            <div class="vs-item">
+              <div class="vs-icon">👆</div>
+              <div class="vs-label">物理ボタン</div>
+            </div>
+          </div>
+          <div class="vs-pair">
+            <div class="vs-item">
+              <div class="vs-icon">🖥️</div>
+              <div class="vs-label">フォーカス必要</div>
+            </div>
+            <div class="vs-arrow">→</div>
+            <div class="vs-item">
+              <div class="vs-icon">⚡</div>
+              <div class="vs-label">どこでも入力</div>
+            </div>
+          </div>
+          <div class="vs-pair">
+            <div class="vs-item">
+              <div class="vs-icon">👁️</div>
+              <div class="vs-label">画面を見る</div>
+            </div>
+            <div class="vs-arrow">→</div>
+            <div class="vs-item">
+              <div class="vs-icon">🤲</div>
+              <div class="vs-label">感覚で操作</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 8: Summary -->
+  <div class="slide" data-index="8">
+    <div class="slide-inner">
+      <h2>Summary</h2>
+      <h3>まとめ</h3>
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="score-icon">😄</div>
+          <h4>面白さ</h4>
+          <p>3,000円のキーボードでAIを操る。シンプルな発想が生む驚きの体験</p>
+        </div>
+        <div class="summary-card">
+          <div class="score-icon">⚙️</div>
+          <h4>クオリティ</h4>
+          <p>OS レベルのフック・PTY インジェクション・自動起動まで完全動作</p>
+        </div>
+        <div class="summary-card">
+          <div class="score-icon">🏋️</div>
+          <h4>テーマ適合</h4>
+          <p>AIという「非物理」を、ボタンという「物理」で直接制御する</p>
+        </div>
+      </div>
+      <div class="closing">
+        物理ボタンが、AI との対話を<br>
+        <strong>もっと速く、もっと自然に変える</strong>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar"></div>
+</div>
+
+<div class="slide-counter" id="slideCounter">1 / 9</div>
+
+<div class="nav-hint">
+  <span class="key">←</span><span class="key">→</span> or click to navigate
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+
+  function goTo(index) {
+    if (index < 0 || index >= total) return;
+
+    const prev = slides[current];
+    prev.classList.add('exit');
+    setTimeout(() => prev.classList.remove('exit', 'active'), 350);
+
+    current = index;
+    slides[current].classList.add('active');
+
+    document.getElementById('progressBar').style.width = ((current + 1) / total * 100) + '%';
+    document.getElementById('slideCounter').textContent = (current + 1) + ' / ' + total;
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'Space') goTo(current + 1);
+    if (e.key === 'ArrowLeft') goTo(current - 1);
+  });
+
+  document.addEventListener('click', e => {
+    if (e.target.closest('video')) return;
+    goTo(current + 1);
+  });
+
+  // Init progress
+  document.getElementById('progressBar').style.width = (1 / total * 100) + '%';
+</script>
+</body>
+</html>
